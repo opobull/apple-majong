@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사과 연결 10</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #c3e6cb 0%, #a8d5ba 100%);
+            font-family: 'Arial Black', Arial, sans-serif;
+            touch-action: manipulation;
+        }
+        
+        #gameContainer {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
+        #gameBoard {
+            background: #e8f5e9;
+            border: 8px solid #2e7d32;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(18, 50px);
+            grid-template-rows: repeat(10, 50px);
+            gap: 5px;
+            position: relative;
+        }
+        
+        .apple {
+            width: 35px;
+            height: 35px;
+            margin: 7.5px;
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #d32f2f);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            user-select: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .apple::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 12px;
+            background: #8b4513;
+            border-radius: 2px;
+        }
+        
+        .apple::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 18px;
+            width: 15px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 0 50% 50% 0;
+            transform: rotate(-20deg);
+        }
+        
+        .apple:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+        
+        .apple.selected {
+            background: radial-gradient(circle at 30% 30%, #ffd700, #ffa500);
+            transform: scale(1.15);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+        
+        .apple.removing {
+            animation: pop 0.3s ease-out;
+        }
+        
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        
+        #scorePanel {
+            background: white;
+            border: 6px solid #2e7d32;
+            border-radius: 20px;
+            padding: 30px;
+            min-width: 200px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        #scorePanel h2 {
+            margin: 0 0 20px 0;
+            color: #2e7d32;
+            font-size: 32px;
+        }
+        
+        #score {
+            font-size: 64px;
+            color: #d32f2f;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        #timer {
+            font-size: 48px;
+            color: #ff6b00;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        
+        #timer.warning {
+            color: #d32f2f;
+            animation: pulse 0.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            pointer-events: none;
+        }
+        
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            border: 8px solid #2e7d32;
+            text-align: center;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        #gameOver h1 {
+            color: #d32f2f;
+            font-size: 48px;
+            margin: 0 0 20px 0;
+        }
+        
+        #finalScore {
+            font-size: 72px;
+            color: #2e7d32;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameBoard">
+            <canvas id="canvas" width="1015" height="605"></canvas>
+            <div id="grid"></div>
+        </div>
+        <div id="scorePanel">
+            <h2>점수</h2>
+            <div id="score">0</div>
+            <h2>시간</h2>
+            <div id="timer">60</div>
+            <button onclick="resetGame()">새 게임</button>
+        </div>
+    </div>
+    
+    <div id="gameOver">
+        <h1>게임 종료!</h1>
+        <div id="finalScore">0</div>
+        <button onclick="resetGame()">다시 하기</button>
+    </div>
+
+    <script>
+        const ROWS = 10;
+        const COLS = 18;
+        const TILE_SIZE = 50;
+        const GAP = 5;
+        const TIME_LIMIT = 60;
+        
+        let grid = [];
+        let selectedTile = null;
+        let score = 0;
+        let timeLeft = TIME_LIMIT;
+        let timerInterval = null;
+        let gameActive = true;
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const gridElement = document.getElementById('grid');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const gameOverElement = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+        
+        // Audio Context 초기화
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 사운드 이펙트 함수들
+        function playSelectSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+        
+        function playSuccessSound() {
+            const oscillator1 = audioContext.createOscillator();
+            const oscillator2 = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator1.connect(gainNode);
+            oscillator2.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator1.frequency.value = 523.25; // C5
+            oscillator2.frequency.value = 659.25; // E5
+            oscillator1.type = 'sine';
+            oscillator2.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator1.start(audioContext.currentTime);
+            oscillator2.start(audioContext.currentTime);
+            oscillator1.stop(audioContext.currentTime + 0.3);
+            oscillator2.stop(audioContext.currentTime + 0.3);
+        }
+        
+        function playErrorSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 200;
+            oscillator.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.15);
+        }
+        
+        function playTickSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 1000;
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.05);
+        }
+        
+        function playGameOverSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(220, audioContext.currentTime + 0.5);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+        
+        function initGame() {
+            grid = [];
+            for (let row = 0; row < ROWS; row++) {
+                grid[row] = [];
+                for (let col = 0; col < COLS; col++) {
+                    grid[row][col] = Math.floor(Math.random() * 9) + 1;
+                }
+            }
+            renderGrid();
+            startTimer();
+        }
+        
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (grid[row][col] !== 0) {
+                        const apple = document.createElement('div');
+                        apple.className = 'apple';
+                        apple.textContent = grid[row][col];
+                        apple.dataset.row = row;
+                        apple.dataset.col = col;
+                        apple.style.gridColumn = col + 1;
+                        apple.style.gridRow = row + 1;
+                        apple.addEventListener('click', () => handleTileClick(row, col));
+                        gridElement.appendChild(apple);
+                    }
+                }
+            }
+        }
+        
+        function handleTileClick(row, col) {
+            if (!gameActive) return;
+            
+            // Audio Context 재개 (브라우저 정책)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            if (selectedTile === null) {
+                selectedTile = { row, col, value: grid[row][col] };
+                highlightTile(row, col, true);
+                playSelectSound();
+            } else {
+                if (selectedTile.row === row && selectedTile.col === col) {
+                    highlightTile(row, col, false);
+                    selectedTile = null;
+                    clearCanvas();
+                    playSelectSound();
+                } else {
+                    const sum = selectedTile.value + grid[row][col];
+                    if (sum === 10) {
+                        const path = findPath(selectedTile.row, selectedTile.col, row, col);
+                        if (path) {
+                            playSuccessSound();
+                            drawPath(path);
+                            setTimeout(() => {
+                                removeTiles(selectedTile.row, selectedTile.col, row, col);
+                                score += 10;
+                                scoreElement.textContent = score;
+                                selectedTile = null;
+                                clearCanvas();
+                            }, 300);
+                        } else {
+                            playErrorSound();
+                            highlightTile(selectedTile.row, selectedTile.col, false);
+                            selectedTile = { row, col, value: grid[row][col] };
+                            highlightTile(row, col, true);
+                            clearCanvas();
+                        }
+                    } else {
+                        playSelectSound();
+                        highlightTile(selectedTile.row, selectedTile.col, false);
+                        selectedTile = { row, col, value: grid[row][col] };
+                        highlightTile(row, col, true);
+                        clearCanvas();
+                    }
+                }
+            }
+        }
+        
+        function highlightTile(row, col, highlight) {
+            const tiles = document.querySelectorAll('.apple');
+            tiles.forEach(tile => {
+                if (parseInt(tile.dataset.row) === row && parseInt(tile.dataset.col) === col) {
+                    if (highlight) {
+                        tile.classList.add('selected');
+                    } else {
+                        tile.classList.remove('selected');
+                    }
+                }
+            });
+        }
+        
+        function removeTiles(row1, col1, row2, col2) {
+            const tiles = document.querySelectorAll('.apple');
+            tiles.forEach(tile => {
+                const r = parseInt(tile.dataset.row);
+                const c = parseInt(tile.dataset.col);
+                if ((r === row1 && c === col1) || (r === row2 && c === col2)) {
+                    tile.classList.add('removing');
+                    setTimeout(() => {
+                        tile.remove();
+                    }, 300);
+                }
+            });
+            grid[row1][col1] = 0;
+            grid[row2][col2] = 0;
+        }
+        
+        function findPath(r1, c1, r2, c2) {
+            // 직선 연결 체크
+            if (r1 === r2) {
+                if (isHorizontalClear(r1, Math.min(c1, c2), Math.max(c1, c2))) {
+                    return [{ row: r1, col: c1 }, { row: r2, col: c2 }];
+                }
+            }
+            if (c1 === c2) {
+                if (isVerticalClear(c1, Math.min(r1, r2), Math.max(r1, r2))) {
+                    return [{ row: r1, col: c1 }, { row: r2, col: c2 }];
+                }
+            }
+            
+            // 1번 꺾임 체크
+            // 모서리 1: (r1, c2)
+            if (isSafeAndEmpty(r1, c2) || (r1 === r2 && c2 === c2)) {
+                if (isHorizontalClear(r1, Math.min(c1, c2), Math.max(c1, c2)) &&
+                    isVerticalClear(c2, Math.min(r1, r2), Math.max(r1, r2))) {
+                    return [{ row: r1, col: c1 }, { row: r1, col: c2 }, { row: r2, col: c2 }];
+                }
+            }
+            
+            // 모서리 2: (r2, c1)
+            if (isSafeAndEmpty(r2, c1) || (r2 === r2 && c1 === c1)) {
+                if (isVerticalClear(c1, Math.min(r1, r2), Math.max(r1, r2)) &&
+                    isHorizontalClear(r2, Math.min(c1, c2), Math.max(c1, c2))) {
+                    return [{ row: r1, col: c1 }, { row: r2, col: c1 }, { row: r2, col: c2 }];
+                }
+            }
+            
+            // 2번 꺾임 체크 - 가로 확장 (격자 안)
+            for (let c = 0; c < COLS; c++) {
+                if (c === c1 || c === c2) continue;
+                if (isSafeAndEmpty(r1, c) && isSafeAndEmpty(r2, c)) {
+                    if (isHorizontalClear(r1, Math.min(c1, c), Math.max(c1, c)) &&
+                        isVerticalClear(c, Math.min(r1, r2), Math.max(r1, r2)) &&
+                        isHorizontalClear(r2, Math.min(c, c2), Math.max(c, c2))) {
+                        return [{ row: r1, col: c1 }, { row: r1, col: c }, { row: r2, col: c }, { row: r2, col: c2 }];
+                    }
+                }
+            }
+            
+            // 2번 꺾임 체크 - 세로 확장 (격자 안)
+            for (let r = 0; r < ROWS; r++) {
+                if (r === r1 || r === r2) continue;
+                if (isSafeAndEmpty(r, c1) && isSafeAndEmpty(r, c2)) {
+                    if (isVerticalClear(c1, Math.min(r1, r), Math.max(r1, r)) &&
+                        isHorizontalClear(r, Math.min(c1, c2), Math.max(c1, c2)) &&
+                        isVerticalClear(c2, Math.min(r, r2), Math.max(r, r2))) {
+                        return [{ row: r1, col: c1 }, { row: r, col: c1 }, { row: r, col: c2 }, { row: r2, col: c2 }];
+                    }
+                }
+            }
+            
+            // === 바깥쪽 경로 체크 ===
+            
+            // 상단 엣지 (row = 0) 경로
+            if (r1 === 0 && r2 === 0) {
+                // 같은 상단 줄에서 바깥쪽을 통해 연결
+                if (isVerticalClear(c1, -1, 0) && isVerticalClear(c2, -1, 0) && 
+                    isHorizontalClearExtended(-1, Math.min(c1, c2), Math.max(c1, c2))) {
+                    return [{ row: r1, col: c1 }, { row: -1, col: c1 }, { row: -1, col: c2 }, { row: r2, col: c2 }];
+                }
+            } else if (r1 === 0) {
+                // 한쪽만 상단
+                if (isVerticalClear(c1, -1, 0) && isVerticalClear(c2, -1, Math.min(r2, 0)) &&
+                    isHorizontalClearExtended(-1, Math.min(c1, c2), Math.max(c1, c2))) {
+                    if (r2 < 0 || isVerticalClear(c2, 0, r2)) {
+                        return [{ row: r1, col: c1 }, { row: -1, col: c1 }, { row: -1, col: c2 }, { row: r2, col: c2 }];
+                    }
+                }
+            } else if (r2 === 0) {
+                // 한쪽만 상단
+                if (isVerticalClear(c2, -1, 0) && isVerticalClear(c1, -1, Math.min(r1, 0)) &&
+                    isHorizontalClearExtended(-1, Math.min(c1, c2), Math.max(c1, c2))) {
+                    if (r1 < 0 || isVerticalClear(c1, 0, r1)) {
+                        return [{ row: r1, col: c1 }, { row: -1, col: c1 }, { row: -1, col: c2 }, { row: r2, col: c2 }];
+                    }
+                }
+            }
+            
+            // 하단 엣지 (row = ROWS-1) 경로
+            if (r1 === ROWS - 1 && r2 === ROWS - 1) {
+                if (isVerticalClear(c1, ROWS - 1, ROWS) && isVerticalClear(c2, ROWS - 1, ROWS) &&
+                    isHorizontalClearExtended(ROWS, Math.min(c1, c2), Math.max(c1, c2))) {
+                    return [{ row: r1, col: c1 }, { row: ROWS, col: c1 }, { row: ROWS, col: c2 }, { row: r2, col: c2 }];
+                }
+            } else if (r1 === ROWS - 1) {
+                if (isVerticalClear(c1, ROWS - 1, ROWS) && isVerticalClear(c2, Math.max(r2, ROWS - 1), ROWS) &&
+                    isHorizontalClearExtended(ROWS, Math.min(c1, c2), Math.max(c1, c2))) {
+                    if (r2 >= ROWS || isVerticalClear(c2, r2, ROWS - 1)) {
+                        return [{ row: r1, col: c1 }, { row: ROWS, col: c1 }, { row: ROWS, col: c2 }, { row: r2, col: c2 }];
+                    }
+                }
+            } else if (r2 === ROWS - 1) {
+                if (isVerticalClear(c2, ROWS - 1, ROWS) && isVerticalClear(c1, Math.max(r1, ROWS - 1), ROWS) &&
+                    isHorizontalClearExtended(ROWS, Math.min(c1, c2), Math.max(c1, c2))) {
+                    if (r1 >= ROWS || isVerticalClear(c1, r1, ROWS - 1)) {
+                        return [{ row: r1, col: c1 }, { row: ROWS, col: c1 }, { row: ROWS, col: c2 }, { row: r2, col: c2 }];
+                    }
+                }
+            }
+            
+            // 좌측 엣지 (col = 0) 경로
+            if (c1 === 0 && c2 === 0) {
+                if (isHorizontalClear(r1, -1, 0) && isHorizontalClear(r2, -1, 0) &&
+                    isVerticalClearExtended(-1, Math.min(r1, r2), Math.max(r1, r2))) {
+                    return [{ row: r1, col: c1 }, { row: r1, col: -1 }, { row: r2, col: -1 }, { row: r2, col: c2 }];
+                }
+            } else if (c1 === 0) {
+                if (isHorizontalClear(r1, -1, 0) && isHorizontalClear(r2, -1, Math.min(c2, 0)) &&
+                    isVerticalClearExtended(-1, Math.min(r1, r2), Math.max(r1, r2))) {
+                    if (c2 < 0 || isHorizontalClear(r2, 0, c2)) {
+                        return [{ row: r1, col: c1 }, { row: r1, col: -1 }, { row: r2, col: -1 }, { row: r2, col: c2 }];
+                    }
+                }
+            } else if (c2 === 0) {
+                if (isHorizontalClear(r2, -1, 0) && isHorizontalClear(r1, -1, Math.min(c1, 0)) &&
+                    isVerticalClearExtended(-1, Math.min(r1, r2), Math.max(r1, r2))) {
+                    if (c1 < 0 || isHorizontalClear(r1, 0, c1)) {
+                        return [{ row: r1, col: c1 }, { row: r1, col: -1 }, { row: r2, col: -1 }, { row: r2, col: c2 }];
+                    }
+                }
+            }
+            
+            // 우측 엣지 (col = COLS-1) 경로
+            if (c1 === COLS - 1 && c2 === COLS - 1) {
+                if (isHorizontalClear(r1, COLS - 1, COLS) && isHorizontalClear(r2, COLS - 1, COLS) &&
+                    isVerticalClearExtended(COLS, Math.min(r1, r2), Math.max(r1, r2))) {
+                    return [{ row: r1, col: c1 }, { row: r1, col: COLS }, { row: r2, col: COLS }, { row: r2, col: c2 }];
+                }
+            } else if (c1 === COLS - 1) {
+                if (isHorizontalClear(r1, COLS - 1, COLS) && isHorizontalClear(r2, Math.max(c2, COLS - 1), COLS) &&
+                    isVerticalClearExtended(COLS, Math.min(r1, r2), Math.max(r1, r2))) {
+                    if (c2 >= COLS || isHorizontalClear(r2, c2, COLS - 1)) {
+                        return [{ row: r1, col: c1 }, { row: r1, col: COLS }, { row: r2, col: COLS }, { row: r2, col: c2 }];
+                    }
+                }
+            } else if (c2 === COLS - 1) {
+                if (isHorizontalClear(r2, COLS - 1, COLS) && isHorizontalClear(r1, Math.max(c1, COLS - 1), COLS) &&
+                    isVerticalClearExtended(COLS, Math.min(r1, r2), Math.max(r1, r2))) {
+                    if (c1 >= COLS || isHorizontalClear(r1, c1, COLS - 1)) {
+                        return [{ row: r1, col: c1 }, { row: r1, col: COLS }, { row: r2, col: COLS }, { row: r2, col: c2 }];
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        function isSafeAndEmpty(row, col) {
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return true;
+            return grid[row][col] === 0;
+        }
+        
+        function isHorizontalClear(row, col1, col2) {
+            if (row < 0 || row >= ROWS) return true;
+            for (let c = col1 + 1; c < col2; c++) {
+                if (c >= 0 && c < COLS && grid[row][c] !== 0) return false;
+            }
+            return true;
+        }
+        
+        function isVerticalClear(col, row1, row2) {
+            if (col < 0 || col >= COLS) return true;
+            for (let r = row1 + 1; r < row2; r++) {
+                if (r >= 0 && r < ROWS && grid[r][col] !== 0) return false;
+            }
+            return true;
+        }
+        
+        function isHorizontalClearExtended(row, col1, col2) {
+            // 바깥쪽 행은 항상 빈 공간
+            if (row < 0 || row >= ROWS) return true;
+            return isHorizontalClear(row, col1, col2);
+        }
+        
+        function isVerticalClearExtended(col, row1, row2) {
+            // 바깥쪽 열은 항상 빈 공간
+            if (col < 0 || col >= COLS) return true;
+            return isVerticalClear(col, row1, row2);
+        }
+        
+        function drawPath(path) {
+            clearCanvas();
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = 'rgba(255, 215, 0, 0.5)';
+            ctx.shadowBlur = 10;
+            
+            const OFFSET = 25; // 바깥쪽 경로를 위한 오프셋
+            
+            ctx.beginPath();
+            for (let i = 0; i < path.length; i++) {
+                let x = path[i].col * (TILE_SIZE + GAP) + TILE_SIZE / 2;
+                let y = path[i].row * (TILE_SIZE + GAP) + TILE_SIZE / 2;
+                
+                // 바깥쪽 경로 처리
+                if (path[i].row < 0) y = -OFFSET;
+                if (path[i].row >= ROWS) y = ROWS * (TILE_SIZE + GAP) - GAP + OFFSET;
+                if (path[i].col < 0) x = -OFFSET;
+                if (path[i].col >= COLS) x = COLS * (TILE_SIZE + GAP) - GAP + OFFSET;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        }
+        
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timeLeft = TIME_LIMIT;
+            timerElement.textContent = timeLeft;
+            timerElement.classList.remove('warning');
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+                
+                if (timeLeft <= 10) {
+                    timerElement.classList.add('warning');
+                    playTickSound();
+                }
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+        
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            playGameOverSound();
+            finalScoreElement.textContent = score;
+            gameOverElement.style.display = 'block';
+        }
+        
+        function resetGame() {
+            gameActive = true;
+            score = 0;
+            selectedTile = null;
+            scoreElement.textContent = score;
+            gameOverElement.style.display = 'none';
+            clearCanvas();
+            initGame();
+        }
+        
+        initGame();
+    </script>
+</body>
+</html>
