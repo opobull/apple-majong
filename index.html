@@ -2,260 +2,245 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>사과 사천성 (Padding Fix)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>사과 사천성 (Line Fix)</title>
     <style>
+        :root {
+            --bg-grad-start: #c3e6cb;
+            --bg-grad-end: #a8d5ba;
+            --primary-color: #00796b;
+            --accent-color: #d32f2f;
+            --text-color: #004d40;
+        }
+
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #c3e6cb 0%, #a8d5ba 100%);
-            font-family: 'Arial Black', Arial, sans-serif;
-            touch-action: manipulation;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        
-        #gameContainer {
-            /* 너비 자동 조정 */
-            width: fit-content;
+
+        #main-scaler {
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            width: fit-content; 
+        }
+
+        #ui-header {
+            width: 100%;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-group {
+            display: flex;
             gap: 20px;
-        }
-        
-        #scoreBar {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            background: white;
-            border: 6px solid #2e7d32;
-            border-radius: 20px;
-            padding: 15px 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            min-width: 400px;
-        }
-        
-        .scoreItem {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .scoreItem h2 {
-            margin: 0;
-            color: #2e7d32;
-            font-size: 24px;
-        }
-        
-        #score {
-            font-size: 36px;
-            color: #d32f2f;
-            margin: 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        #timer {
-            font-size: 36px;
-            color: #ff6b00;
-            margin: 0;
             font-weight: bold;
+            font-size: 18px;
+            color: var(--text-color);
+            align-items: center;
         }
-        
-        #timer.warning {
-            color: #d32f2f;
-            animation: pulse 0.5s infinite;
+
+        .status-item span {
+            color: var(--accent-color);
+            font-size: 24px;
+            font-weight: 800;
+            margin-left: 8px;
         }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+
+        #reset-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--primary-color);
+            transition: transform 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            opacity: 0.8;
         }
-        
+        #reset-btn:hover { transform: rotate(180deg); opacity: 1; }
+
         #gameBoard {
             background: #e8f5e9;
-            padding: 20px;
+            /* 패딩 15px 중요: JS 좌표 계산에서 이 값을 사용함 */
+            padding: 15px; 
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             position: relative;
-            width: fit-content;
-            border-radius: 10px;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            display: block; /* Flex가 아닌 Block으로 변경하여 캔버스 절대위치 기준점 확보 */
         }
-        
+
         #grid {
             display: grid;
-            /* 수정: 패딩 포함 크기 (20열 x 12행) */
             grid-template-columns: repeat(20, 30px);
             grid-template-rows: repeat(12, 30px);
-            gap: 3px;
+            gap: 2px;
             position: relative;
+            z-index: 10;
         }
-        
+
         .apple {
-            width: 21px;
-            height: 21px;
-            margin: 4.5px;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            z-index: 10;
+            touch-action: manipulation; 
+        }
+
+        .apple-inner {
+            width: 26px;
+            height: 26px;
             background: radial-gradient(circle at 30% 30%, #ff6b6b, #d32f2f);
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 900;
             color: white;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-            user-select: none;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            z-index: 10;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+            pointer-events: none;
         }
-        
-        /* 빈 공간(패딩)은 투명하게 처리 */
-        .empty-cell {
-            width: 30px;
-            height: 30px;
+
+        .apple-inner::before {
+            content: ''; position: absolute;
+            top: -4px; left: 50%; transform: translateX(-50%);
+            width: 4px; height: 6px; background: #795548; border-radius: 2px;
         }
-        
-        .apple::before {
-            content: '';
-            position: absolute;
-            top: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 5px;
-            height: 8px;
-            background: #8b4513;
-            border-radius: 2px;
+        .apple-inner::after {
+            content: ''; position: absolute;
+            top: -5px; right: 6px;
+            width: 8px; height: 6px; background: #66bb6a;
+            border-radius: 0 50% 50% 0; transform: rotate(-20deg);
         }
-        
-        .apple::after {
-            content: '';
-            position: absolute;
-            top: -4px;
-            right: 8px;
-            width: 10px;
-            height: 7px;
-            background: #4caf50;
-            border-radius: 0 50% 50% 0;
-            transform: rotate(-20deg);
+
+        .apple.selected .apple-inner {
+            transform: scale(1.2);
+            background: radial-gradient(circle at 30% 30%, #ffd54f, #ffb300);
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
         }
-        
-        .apple:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-        }
-        
-        .apple.selected {
-            background: radial-gradient(circle at 30% 30%, #ffd700, #ffa500);
-            transform: scale(1.15);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
-        }
-        
-        .apple.removing {
-            animation: pop 0.3s ease-out;
-        }
-        
-        @keyframes pop {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.7; }
-            100% { transform: scale(0); opacity: 0; }
-        }
-        
-        button {
-            background: #4caf50;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 24px;
-            font-weight: bold;
-            border-radius: 10px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: all 0.2s;
-            width: 100%;
-        }
-        
-        button:hover {
-            background: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-        }
-        
-        button:active {
-            transform: translateY(0);
-        }
-        
+
+        /* 수정: 캔버스 위치와 크기 보정 */
         #canvas {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 0; 
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-            z-index: 5;
+            z-index: 20; /* 사과보다 위에 그려지도록 (원하면 5로 낮춰도 됨) */
         }
-        
+
+        .floating-text {
+            position: absolute;
+            color: #ff6b00;
+            font-weight: 900;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 50;
+            text-shadow: 2px 2px 0px white;
+            animation: floatUp 0.8s ease-out forwards;
+            white-space: pre;
+            text-align: center;
+        }
+        .combo-text { color: #d32f2f; font-size: 28px; }
+        @keyframes floatUp { to { transform: translateY(-40px) scale(1.2); opacity: 0; } }
+
+        .particle {
+            position: absolute;
+            width: 6px; height: 6px;
+            background: #d32f2f;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 40;
+            animation: explode 0.6s ease-out forwards;
+        }
+        @keyframes explode { to { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; } }
+
         #gameOver {
             display: none;
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 50px;
-            border-radius: 20px;
-            border: 8px solid #2e7d32;
-            text-align: center;
-            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
-            z-index: 1000;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
         }
-        
-        #gameOver h1 {
-            color: #d32f2f;
-            font-size: 48px;
-            margin: 0 0 20px 0;
+        .modal-content {
+            background: white; padding: 40px; border-radius: 20px; text-align: center;
+            animation: popIn 0.3s; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
         }
-        
-        #finalScore {
-            font-size: 72px;
-            color: #2e7d32;
-            margin: 20px 0;
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .restart-big-btn {
+            background: #00796b; color: white; border: none;
+            padding: 15px 40px; font-size: 20px; border-radius: 30px;
+            cursor: pointer; font-weight: bold; margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0,121,107,0.4);
         }
+        #timer.warning { color: #d32f2f; animation: pulse 0.5s infinite; }
+        @keyframes pulse { 50% { transform: scale(1.2); } }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div id="scoreBar">
-            <div class="scoreItem">
-                <h2>점수</h2>
-                <div id="score">0</div>
+
+    <div id="main-scaler">
+        <div id="ui-header">
+            <div class="status-group">
+                <div class="status-item">점수 <span id="score">0</span></div>
+                <div class="status-item">시간 <span id="timer">60</span></div>
             </div>
-            <div class="scoreItem">
-                <h2>시간</h2>
-                <div id="timer">60</div>
-            </div>
+            <button id="reset-btn" onclick="resetGame()" title="다시 시작">↻</button>
         </div>
+
         <div id="gameBoard">
-            <!-- 캔버스 크기 수정: (20 * 33 - 3) x (12 * 33 - 3) -->
-            <canvas id="canvas" width="657" height="393"></canvas>
+            <!-- 수정: 캔버스 크기를 실제 패딩 포함 크기에 맞춰 넉넉하게 설정 (670x420) -->
+            <canvas id="canvas" width="670" height="420"></canvas>
             <div id="grid"></div>
         </div>
-        <button onclick="resetGame()">새 게임</button>
     </div>
     
     <div id="gameOver">
-        <h1>게임 종료!</h1>
-        <div id="finalScore">0</div>
-        <button onclick="resetGame()">다시 하기</button>
+        <div class="modal-content">
+            <h1 style="margin:0; color:#d32f2f;">GAME OVER</h1>
+            <div style="font-size:60px; color:#2e7d32; margin:20px 0; font-weight:bold;" id="finalScore">0</div>
+            <button class="restart-big-btn" onclick="resetGame()">다시 도전!</button>
+        </div>
     </div>
 
     <script>
-        // 수정: 패딩을 포함한 전체 그리드 크기 (상하좌우 1줄씩 추가)
-        // 실제 게임 영역: 행 1~10, 열 1~18
         const ROWS = 12; 
         const COLS = 20;
-        
         const TILE_SIZE = 30;
-        const GAP = 3;
+        const GAP = 2;
         const TIME_LIMIT = 60;
         
         let grid = [];
@@ -264,6 +249,8 @@
         let timeLeft = TIME_LIMIT;
         let timerInterval = null;
         let gameActive = true;
+        let lastMatchTime = 0;
+        let comboCount = 0;
         
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -272,273 +259,286 @@
         const timerElement = document.getElementById('timer');
         const gameOverElement = document.getElementById('gameOver');
         const finalScoreElement = document.getElementById('finalScore');
-        
+        const mainScaler = document.getElementById('main-scaler');
+
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playSelectSound() {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.frequency.value = 800;
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.1);
+
+        function playSound(type) {
+            try {
+                if (audioContext.state === 'suspended') audioContext.resume();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                const now = audioContext.currentTime;
+
+                if (type === 'select') {
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'success') {
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.stop(now + 0.3);
+                } else if (type === 'combo') {
+                    osc.frequency.setValueAtTime(1000 + (comboCount * 100), now);
+                    osc.type = 'triangle';
+                    gain.gain.setValueAtTime(0.15, now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'error') {
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.type = 'sawtooth';
+                    gain.gain.setValueAtTime(0.1, now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'tick') {
+                    osc.frequency.setValueAtTime(1000, now);
+                    osc.type = 'square';
+                    gain.gain.setValueAtTime(0.05, now);
+                    osc.stop(now + 0.05);
+                }
+                osc.start(now);
+            } catch (e) { console.log(e); }
         }
-        
-        function playSuccessSound() {
-            const oscillator1 = audioContext.createOscillator();
-            const oscillator2 = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator1.connect(gainNode);
-            oscillator2.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator1.frequency.value = 523.25; 
-            oscillator2.frequency.value = 659.25; 
-            oscillator1.type = 'sine';
-            oscillator2.type = 'sine';
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            oscillator1.start(audioContext.currentTime);
-            oscillator2.start(audioContext.currentTime);
-            oscillator1.stop(audioContext.currentTime + 0.3);
-            oscillator2.stop(audioContext.currentTime + 0.3);
+
+        function resizeGame() {
+            const windowW = window.innerWidth;
+            const windowH = window.innerHeight;
+            const baseW = 670; 
+            const baseH = 500; 
+            const scale = Math.min(windowW / baseW, windowH / baseH) * 0.95;
+            mainScaler.style.transform = `scale(${scale})`;
         }
-        
-        function playErrorSound() {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.frequency.value = 200;
-            oscillator.type = 'sawtooth';
-            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.15);
-        }
-        
-        function playTickSound() {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.frequency.value = 1000;
-            oscillator.type = 'square';
-            gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.05);
-        }
-        
-        function playGameOverSound() {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(220, audioContext.currentTime + 0.5);
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
-        }
-        
+        window.addEventListener('resize', resizeGame);
+
         function initGame() {
             grid = [];
-            for (let row = 0; row < ROWS; row++) {
-                grid[row] = [];
-                for (let col = 0; col < COLS; col++) {
-                    // 가장자리(0번 행/열, 마지막 행/열)는 0으로 채움 (투명 벽)
-                    if (row === 0 || row === ROWS - 1 || col === 0 || col === COLS - 1) {
-                        grid[row][col] = 0;
+            for (let r = 0; r < ROWS; r++) {
+                grid[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+                        grid[r][c] = 0; 
                     } else {
-                        // 안쪽 실제 게임 영역만 사과 생성
-                        grid[row][col] = Math.floor(Math.random() * 9) + 1;
+                        grid[r][c] = Math.floor(Math.random() * 9) + 1;
                     }
                 }
             }
+            lastMatchTime = 0;
+            comboCount = 0;
             renderGrid();
+            resizeGame();
             startTimer();
         }
-        
+
         function renderGrid() {
             gridElement.innerHTML = '';
-            for (let row = 0; row < ROWS; row++) {
-                for (let col = 0; col < COLS; col++) {
-                    if (grid[row][col] !== 0) {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c] !== 0) {
                         const apple = document.createElement('div');
                         apple.className = 'apple';
-                        apple.textContent = grid[row][col];
-                        apple.dataset.row = row;
-                        apple.dataset.col = col;
-                        apple.style.gridColumn = col + 1;
-                        apple.style.gridRow = row + 1;
-                        apple.addEventListener('click', () => handleTileClick(row, col));
+                        apple.dataset.r = r;
+                        apple.dataset.c = c;
+                        apple.style.gridArea = `${r + 1} / ${c + 1} / span 1 / span 1`;
+                        
+                        const inner = document.createElement('div');
+                        inner.className = 'apple-inner';
+                        inner.textContent = grid[r][c];
+                        apple.appendChild(inner);
+
+                        apple.addEventListener('pointerdown', (e) => {
+                            e.preventDefault(); 
+                            handleTileClick(r, c);
+                        });
                         gridElement.appendChild(apple);
-                    } else {
-                        // 빈 공간도 grid layout 유지를 위해 빈 div 추가 (혹은 생략 가능하나 명시적으로)
-                        const empty = document.createElement('div');
-                        empty.className = 'empty-cell';
-                        gridElement.appendChild(empty);
                     }
                 }
             }
         }
-        
-        function handleTileClick(row, col) {
+
+        function handleTileClick(r, c) {
             if (!gameActive) return;
-            if (audioContext.state === 'suspended') audioContext.resume();
             
-            if (selectedTile === null) {
-                selectedTile = { row, col, value: grid[row][col] };
-                highlightTile(row, col, true);
-                playSelectSound();
+            if (!selectedTile) {
+                selectedTile = { r, c, val: grid[r][c] };
+                highlightTile(r, c, true);
+                playSound('select');
             } else {
-                if (selectedTile.row === row && selectedTile.col === col) {
-                    highlightTile(row, col, false);
+                if (selectedTile.r === r && selectedTile.c === c) {
+                    highlightTile(r, c, false);
                     selectedTile = null;
                     clearCanvas();
-                    playSelectSound();
+                    playSound('select');
                 } else {
-                    const sum = selectedTile.value + grid[row][col];
-                    if (sum === 10) {
-                        const path = findPath(selectedTile.row, selectedTile.col, row, col);
+                    if (selectedTile.val + grid[r][c] === 10) {
+                        const path = findPath(selectedTile.r, selectedTile.c, r, c);
                         if (path) {
-                            playSuccessSound();
-                            drawPath(path);
-                            setTimeout(() => {
-                                removeTiles(selectedTile.row, selectedTile.col, row, col);
-                                score += 10;
-                                scoreElement.textContent = score;
-                                selectedTile = null;
-                                clearCanvas();
-                            }, 300);
+                            handleMatch(selectedTile, { r, c, val: grid[r][c] }, path);
                         } else {
-                            playErrorSound();
-                            highlightTile(selectedTile.row, selectedTile.col, false);
-                            selectedTile = { row, col, value: grid[row][col] };
-                            highlightTile(row, col, true);
-                            clearCanvas();
+                            handleMismatch(r, c);
                         }
                     } else {
-                        playSelectSound();
-                        highlightTile(selectedTile.row, selectedTile.col, false);
-                        selectedTile = { row, col, value: grid[row][col] };
-                        highlightTile(row, col, true);
-                        clearCanvas();
+                        handleMismatch(r, c);
                     }
                 }
             }
         }
-        
-        function highlightTile(row, col, highlight) {
-            const tiles = document.querySelectorAll('.apple');
-            tiles.forEach(tile => {
-                if (parseInt(tile.dataset.row) === row && parseInt(tile.dataset.col) === col) {
-                    if (highlight) tile.classList.add('selected');
-                    else tile.classList.remove('selected');
-                }
-            });
+
+        function handleMatch(tile1, tile2, path) {
+            drawPath(path);
+            const now = Date.now();
+            if (now - lastMatchTime < 1500) comboCount++;
+            else comboCount = 0;
+            lastMatchTime = now;
+
+            const baseScore = 10;
+            const bonus = comboCount * 5;
+            const totalAdd = baseScore + bonus;
+            score += totalAdd;
+            scoreElement.textContent = score;
+
+            if (comboCount > 0) playSound('combo');
+            else playSound('success');
+
+            const targetEl = document.querySelector(`.apple[data-r="${tile2.r}"][data-c="${tile2.c}"]`);
+            if (targetEl) {
+                showFloatingText(targetEl, totalAdd, comboCount);
+                createParticles(targetEl);
+                const t1El = document.querySelector(`.apple[data-r="${tile1.r}"][data-c="${tile1.c}"]`);
+                if(t1El) createParticles(t1El);
+            }
+
+            setTimeout(() => {
+                removeTiles(tile1.r, tile1.c, tile2.r, tile2.c);
+                selectedTile = null;
+                clearCanvas();
+            }, 200);
         }
-        
-        function removeTiles(row1, col1, row2, col2) {
-            const tiles = document.querySelectorAll('.apple');
-            tiles.forEach(tile => {
-                const r = parseInt(tile.dataset.row);
-                const c = parseInt(tile.dataset.col);
-                if ((r === row1 && c === col1) || (r === row2 && c === col2)) {
-                    tile.classList.add('removing');
-                    setTimeout(() => tile.remove(), 300);
-                }
-            });
-            grid[row1][col1] = 0;
-            grid[row2][col2] = 0;
-            // DOM 업데이트 대신 renderGrid 전체 호출을 피하기 위해 여기서 DOM만 정리할 수도 있지만, 
-            // 지금 구조는 renderGrid를 다시 부르지 않으므로 grid 배열만 업데이트하면 됨.
-            // (참고: 위 remove 로직은 DOM을 직접 삭제하고, grid 값도 0으로 만듦)
+
+        function handleMismatch(r, c) {
+            playSound('error');
+            if(selectedTile) highlightTile(selectedTile.r, selectedTile.c, false);
+            selectedTile = { r, c, val: grid[r][c] };
+            highlightTile(r, c, true);
+            clearCanvas();
         }
-        
-        // 수정된 경로 탐색 로직 (특수 처리 제거, 일반화됨)
+
+        function showFloatingText(element, scoreAdd, combo) {
+            const rect = element.getBoundingClientRect();
+            const textEl = document.createElement('div');
+            textEl.className = 'floating-text';
+            if (combo > 0) {
+                textEl.classList.add('combo-text');
+                textEl.innerText = `+${scoreAdd}\nCOMBO ${combo}!`;
+            } else {
+                textEl.innerText = `+${scoreAdd}`;
+            }
+            textEl.style.left = (rect.left + window.scrollX) + 'px';
+            textEl.style.top = (rect.top + window.scrollY - 20) + 'px';
+            document.body.appendChild(textEl);
+            setTimeout(() => textEl.remove(), 800);
+        }
+
+        function createParticles(element) {
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            for(let i=0; i<8; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = centerX + 'px';
+                p.style.top = centerY + 'px';
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 20 + Math.random() * 20;
+                p.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+                p.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 600);
+            }
+        }
+
+        function highlightTile(r, c, highlight) {
+            const tile = document.querySelector(`.apple[data-r="${r}"][data-c="${c}"]`);
+            if (tile) {
+                if (highlight) tile.classList.add('selected');
+                else tile.classList.remove('selected');
+            }
+        }
+
+        function removeTiles(r1, c1, r2, c2) {
+            const t1 = document.querySelector(`.apple[data-r="${r1}"][data-c="${c1}"]`);
+            const t2 = document.querySelector(`.apple[data-r="${r2}"][data-c="${c2}"]`);
+            if(t1) t1.remove();
+            if(t2) t2.remove();
+            grid[r1][c1] = 0;
+            grid[r2][c2] = 0;
+        }
+
         function findPath(r1, c1, r2, c2) {
-            // 1. 직선 (0번 꺾임)
-            if (r1 === r2 && isHorizontalClear(r1, Math.min(c1, c2), Math.max(c1, c2))) {
-                return [{ row: r1, col: c1 }, { row: r2, col: c2 }];
-            }
-            if (c1 === c2 && isVerticalClear(c1, Math.min(r1, r2), Math.max(r1, r2))) {
-                return [{ row: r1, col: c1 }, { row: r2, col: c2 }];
-            }
+            if (r1 === r2 && isHorizontalClear(r1, Math.min(c1, c2), Math.max(c1, c2))) 
+                return [{r: r1, c: c1}, {r: r2, c: c2}];
+            if (c1 === c2 && isVerticalClear(c1, Math.min(r1, r2), Math.max(r1, r2))) 
+                return [{r: r1, c: c1}, {r: r2, c: c2}];
             
-            // 2. 1번 꺾임 (ㄱ, ㄴ)
-            if (grid[r1][c2] === 0 && // 꺾이는 지점이 비어있어야 함
-                isHorizontalClear(r1, Math.min(c1, c2), Math.max(c1, c2)) &&
-                isVerticalClear(c2, Math.min(r1, r2), Math.max(r1, r2))) {
-                return [{ row: r1, col: c1 }, { row: r1, col: c2 }, { row: r2, col: c2 }];
-            }
-            if (grid[r2][c1] === 0 &&
-                isVerticalClear(c1, Math.min(r1, r2), Math.max(r1, r2)) &&
-                isHorizontalClear(r2, Math.min(c1, c2), Math.max(c1, c2))) {
-                return [{ row: r1, col: c1 }, { row: r2, col: c1 }, { row: r2, col: c2 }];
-            }
+            if (grid[r1][c2] === 0 && isHorizontalClear(r1, Math.min(c1, c2), Math.max(c1, c2)) && isVerticalClear(c2, Math.min(r1, r2), Math.max(r1, r2)))
+                return [{r: r1, c: c1}, {r: r1, c: c2}, {r: r2, c: c2}];
+            if (grid[r2][c1] === 0 && isVerticalClear(c1, Math.min(r1, r2), Math.max(r1, r2)) && isHorizontalClear(r2, Math.min(c1, c2), Math.max(c1, c2)))
+                return [{r: r1, c: c1}, {r: r2, c: c1}, {r: r2, c: c2}];
             
-            // 3. 2번 꺾임 (ㄷ, ㄹ) - 패딩 덕분에 전체 스캔만 하면 됨
-            // 가로 스캔
             for (let c = 0; c < COLS; c++) {
                 if (c === c1 || c === c2) continue;
                 if (grid[r1][c] === 0 && grid[r2][c] === 0) {
                     if (isHorizontalClear(r1, Math.min(c1, c), Math.max(c1, c)) &&
                         isVerticalClear(c, Math.min(r1, r2), Math.max(r1, r2)) &&
                         isHorizontalClear(r2, Math.min(c, c2), Math.max(c, c2))) {
-                        return [{ row: r1, col: c1 }, { row: r1, col: c }, { row: r2, col: c }, { row: r2, col: c2 }];
+                        return [{r: r1, c: c1}, {r: r1, c}, {r: r2, c}, {r: r2, c: c2}];
                     }
                 }
             }
-            // 세로 스캔
             for (let r = 0; r < ROWS; r++) {
                 if (r === r1 || r === r2) continue;
                 if (grid[r][c1] === 0 && grid[r][c2] === 0) {
                     if (isVerticalClear(c1, Math.min(r1, r), Math.max(r1, r)) &&
                         isHorizontalClear(r, Math.min(c1, c2), Math.max(c1, c2)) &&
                         isVerticalClear(c2, Math.min(r, r2), Math.max(r, r2))) {
-                        return [{ row: r1, col: c1 }, { row: r, col: c1 }, { row: r, col: c2 }, { row: r2, col: c2 }];
+                        return [{r: r1, c: c1}, {r: r, c: c1}, {r: r, c: c2}, {r: r2, c: c2}];
                     }
                 }
             }
-            
             return null;
         }
-        
-        function isHorizontalClear(row, col1, col2) {
-            for (let c = col1 + 1; c < col2; c++) {
-                if (grid[row][c] !== 0) return false;
-            }
+
+        function isHorizontalClear(r, c1, c2) {
+            for (let c = c1 + 1; c < c2; c++) if (grid[r][c] !== 0) return false;
             return true;
         }
-        
-        function isVerticalClear(col, row1, row2) {
-            for (let r = row1 + 1; r < row2; r++) {
-                if (grid[r][col] !== 0) return false;
-            }
+        function isVerticalClear(c, r1, r2) {
+            for (let r = r1 + 1; r < r2; r++) if (grid[r][c] !== 0) return false;
             return true;
         }
-        
+
+        // --- 핵심 수정: drawPath 좌표 계산 보정 ---
         function drawPath(path) {
             clearCanvas();
-            ctx.strokeStyle = '#ffd700';
-            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#ffca28';
+            ctx.lineWidth = 5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.shadowColor = 'rgba(255, 215, 0, 0.5)';
-            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(255, 200, 0, 0.8)';
+            ctx.shadowBlur = 15;
             
             ctx.beginPath();
+            
+            // 상수는 CSS와 맞춰야 함
+            const PADDING = 15;      // #gameBoard padding
+            const CELL_FULL = 32;    // TILE_SIZE(30) + GAP(2)
+            const HALF_TILE = 15;    // TILE_SIZE / 2
+            
             for (let i = 0; i < path.length; i++) {
-                // 패딩이 포함된 좌표계이므로 그대로 계산하면 됨
-                let x = path[i].col * (TILE_SIZE + GAP) + TILE_SIZE / 2;
-                let y = path[i].row * (TILE_SIZE + GAP) + TILE_SIZE / 2;
+                // 공식: 패딩 + (인덱스 * 셀전체크기) + 반개크기(중앙정렬)
+                let x = PADDING + (path[i].c * CELL_FULL) + HALF_TILE;
+                let y = PADDING + (path[i].r * CELL_FULL) + HALF_TILE;
                 
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
@@ -546,49 +546,40 @@
             ctx.stroke();
         }
         
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timeLeft = TIME_LIMIT;
             timerElement.textContent = timeLeft;
             timerElement.classList.remove('warning');
-            
             timerInterval = setInterval(() => {
                 timeLeft--;
                 timerElement.textContent = timeLeft;
-                
                 if (timeLeft <= 10) {
                     timerElement.classList.add('warning');
-                    playTickSound();
+                    playSound('tick');
                 }
-                
-                if (timeLeft <= 0) {
-                    endGame();
-                }
+                if (timeLeft <= 0) endGame();
             }, 1000);
         }
-        
+
         function endGame() {
             gameActive = false;
             clearInterval(timerInterval);
-            playGameOverSound();
             finalScoreElement.textContent = score;
-            gameOverElement.style.display = 'block';
+            gameOverElement.style.display = 'flex';
         }
-        
+
         function resetGame() {
             gameActive = true;
             score = 0;
-            selectedTile = null;
             scoreElement.textContent = score;
             gameOverElement.style.display = 'none';
             clearCanvas();
             initGame();
         }
-        
+
         initGame();
     </script>
 </body>
