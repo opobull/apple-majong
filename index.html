@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>사과 연결 10 (Line Fix)</title>
+    <title>사과 연결 10</title>
     <style>
         :root {
             --bg-grad-start: #c3e6cb;
@@ -68,6 +68,15 @@
             margin-left: 8px;
         }
 
+        @keyframes time-bonus-flash {
+            0% { color: var(--accent-color); transform: scale(1); }
+            50% { color: #2e7d32; transform: scale(1.5); } 
+            100% { color: var(--accent-color); transform: scale(1); }
+        }
+        .time-added {
+            animation: time-bonus-flash 0.4s ease-out;
+        }
+
         #reset-btn {
             background: none;
             border: none;
@@ -84,18 +93,18 @@
 
         #gameBoard {
             background: #e8f5e9;
-            /* 패딩 15px 중요: JS 좌표 계산에서 이 값을 사용함 */
-            padding: 15px; 
+            padding: 15px; /* 패딩 15px */
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             position: relative;
-            display: block; /* Flex가 아닌 Block으로 변경하여 캔버스 절대위치 기준점 확보 */
+            display: block;
         }
 
         #grid {
             display: grid;
-            grid-template-columns: repeat(20, 30px);
-            grid-template-rows: repeat(12, 30px);
+            /* 모바일 최적화: 세로 모드 (12열 x 20행) */
+            grid-template-columns: repeat(12, 30px);
+            grid-template-rows: repeat(20, 30px);
             gap: 2px;
             position: relative;
             z-index: 10;
@@ -147,7 +156,6 @@
             box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
         }
 
-        /* 수정: 캔버스 위치와 크기 보정 */
         #canvas {
             position: absolute;
             top: 0; 
@@ -155,7 +163,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 20; /* 사과보다 위에 그려지도록 (원하면 5로 낮춰도 됨) */
+            z-index: 20; 
         }
 
         .floating-text {
@@ -166,12 +174,15 @@
             pointer-events: none;
             z-index: 50;
             text-shadow: 2px 2px 0px white;
-            animation: floatUp 0.8s ease-out forwards;
+            animation: floatUp 1s ease-out forwards;
             white-space: pre;
             text-align: center;
+            line-height: 1.2;
         }
         .combo-text { color: #d32f2f; font-size: 28px; }
-        @keyframes floatUp { to { transform: translateY(-40px) scale(1.2); opacity: 0; } }
+        .time-bonus-text { color: #2e7d32; font-size: 20px; display: block; margin-top: 2px; }
+        
+        @keyframes floatUp { to { transform: translateY(-50px) scale(1.1); opacity: 0; } }
 
         .particle {
             position: absolute;
@@ -222,23 +233,24 @@
         </div>
 
         <div id="gameBoard">
-            <!-- 수정: 캔버스 크기를 실제 패딩 포함 크기에 맞춰 넉넉하게 설정 (670x420) -->
-            <canvas id="canvas" width="670" height="420"></canvas>
+            <!-- 세로 모드 캔버스 사이즈 (12열 * 32px + 여백) -->
+            <canvas id="canvas" width="430" height="680"></canvas>
             <div id="grid"></div>
         </div>
     </div>
     
     <div id="gameOver">
         <div class="modal-content">
-            <h1 style="margin:0; color:#d32f2f;">GAME OVER</h1>
+            <h1 id="endTitle" style="margin:0; color:#d32f2f;">GAME OVER</h1>
             <div style="font-size:60px; color:#2e7d32; margin:20px 0; font-weight:bold;" id="finalScore">0</div>
             <button class="restart-big-btn" onclick="resetGame()">다시 도전!</button>
         </div>
     </div>
 
     <script>
-        const ROWS = 12; 
-        const COLS = 20;
+        // --- 세로 모드 설정 (20행 12열) ---
+        const ROWS = 20; 
+        const COLS = 12; 
         const TILE_SIZE = 30;
         const GAP = 2;
         const TIME_LIMIT = 60;
@@ -251,21 +263,36 @@
         let gameActive = true;
         let lastMatchTime = 0;
         let comboCount = 0;
-        
+        let isProcessing = false; 
+        let remainingPairs = 0;
+
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const gridElement = document.getElementById('grid');
         const scoreElement = document.getElementById('score');
         const timerElement = document.getElementById('timer');
         const gameOverElement = document.getElementById('gameOver');
+        const endTitleElement = document.getElementById('endTitle');
         const finalScoreElement = document.getElementById('finalScore');
         const mainScaler = document.getElementById('main-scaler');
 
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let audioContext = null;
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        document.addEventListener('click', initAudio, { once: true });
+        document.addEventListener('touchstart', initAudio, { once: true });
 
         function playSound(type) {
+            if (!audioContext) initAudio();
             try {
-                if (audioContext.state === 'suspended') audioContext.resume();
                 const osc = audioContext.createOscillator();
                 const gain = audioContext.createGain();
                 osc.connect(gain);
@@ -273,40 +300,65 @@
                 const now = audioContext.currentTime;
 
                 if (type === 'select') {
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(0.1, now);
+                    osc.frequency.setValueAtTime(659.25, now);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
                     osc.stop(now + 0.1);
                 } else if (type === 'success') {
-                    osc.frequency.setValueAtTime(600, now);
-                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
-                    gain.gain.setValueAtTime(0.2, now);
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.1);
+                    gain.gain.setValueAtTime(0.4, now);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
                     osc.stop(now + 0.3);
                 } else if (type === 'combo') {
-                    osc.frequency.setValueAtTime(1000 + (comboCount * 100), now);
+                    const comboStart = [587.33, 659.25, 698.46];
+                    const comboEnd = [1174.66, 1318.51, 1396.91];
+                    const startFreq = comboStart[Math.min(comboCount, comboStart.length - 1)];
+                    const endFreq = comboEnd[Math.min(comboCount, comboEnd.length - 1)];
+                    
+                    osc.frequency.setValueAtTime(startFreq, now);
+                    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.1);
                     osc.type = 'triangle';
-                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
                     osc.stop(now + 0.3);
                 } else if (type === 'error') {
-                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.setValueAtTime(196.00, now);
                     osc.type = 'sawtooth';
-                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
                     osc.stop(now + 0.15);
                 } else if (type === 'tick') {
-                    osc.frequency.setValueAtTime(1000, now);
+                    osc.frequency.setValueAtTime(783.99, now);
                     osc.type = 'square';
-                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
                     osc.stop(now + 0.05);
+                } else if (type === 'win') {
+                    osc.type = 'triangle';
+                    gain.gain.setValueAtTime(0.5, now);
+                    osc.frequency.setValueAtTime(523.25, now); 
+                    osc.frequency.setValueAtTime(659.25, now + 0.1); 
+                    osc.frequency.setValueAtTime(783.99, now + 0.2); 
+                    osc.frequency.setValueAtTime(1046.50, now + 0.3); 
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
                 }
-                osc.start(now);
-            } catch (e) { console.log(e); }
+            } catch (e) { console.log("Audio error:", e); }
         }
 
         function resizeGame() {
             const windowW = window.innerWidth;
             const windowH = window.innerHeight;
-            const baseW = 670; 
-            const baseH = 500; 
+            // 세로 모드 기준 크기
+            const baseW = 420; 
+            const baseH = 750; 
             const scale = Math.min(windowW / baseW, windowH / baseH) * 0.95;
             mainScaler.style.transform = `scale(${scale})`;
         }
@@ -314,18 +366,37 @@
 
         function initGame() {
             grid = [];
+            
+            let numbers = [];
+            const totalInnerCells = (ROWS - 2) * (COLS - 2);
+            remainingPairs = totalInnerCells / 2; 
+            
+            for (let i = 0; i < remainingPairs; i++) {
+                let n = Math.floor(Math.random() * 9) + 1;
+                numbers.push(n);
+                numbers.push(10 - n);
+            }
+
+            for (let i = numbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+            }
+
+            let idx = 0;
             for (let r = 0; r < ROWS; r++) {
                 grid[r] = [];
                 for (let c = 0; c < COLS; c++) {
                     if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
                         grid[r][c] = 0; 
                     } else {
-                        grid[r][c] = Math.floor(Math.random() * 9) + 1;
+                        grid[r][c] = numbers[idx++];
                     }
                 }
             }
+
             lastMatchTime = 0;
             comboCount = 0;
+            isProcessing = false; 
             renderGrid();
             resizeGame();
             startTimer();
@@ -359,6 +430,11 @@
 
         function handleTileClick(r, c) {
             if (!gameActive) return;
+            if (isProcessing) return; 
+            
+            if (!audioContext || audioContext.state === 'suspended') {
+                initAudio();
+            }
             
             if (!selectedTile) {
                 selectedTile = { r, c, val: grid[r][c] };
@@ -386,24 +462,43 @@
         }
 
         function handleMatch(tile1, tile2, path) {
+            isProcessing = true; 
             drawPath(path);
+            
             const now = Date.now();
             if (now - lastMatchTime < 1500) comboCount++;
             else comboCount = 0;
             lastMatchTime = now;
 
+            // 점수 계산
             const baseScore = 10;
             const bonus = comboCount * 5;
             const totalAdd = baseScore + bonus;
             score += totalAdd;
             scoreElement.textContent = score;
 
+            // 시간 보너스 로직 (밸런스형)
+            let timeBonus = 0;
+            if (comboCount > 0) {
+                timeBonus = Math.min(comboCount, 3);
+            }
+            
+            // 시간 상한선 적용
+            timeLeft = Math.min(timeLeft + timeBonus, TIME_LIMIT);
+            timerElement.textContent = timeLeft;
+            
+            if (timeBonus > 0) {
+                timerElement.classList.remove('time-added');
+                void timerElement.offsetWidth; 
+                timerElement.classList.add('time-added');
+            }
+
             if (comboCount > 0) playSound('combo');
             else playSound('success');
 
             const targetEl = document.querySelector(`.apple[data-r="${tile2.r}"][data-c="${tile2.c}"]`);
             if (targetEl) {
-                showFloatingText(targetEl, totalAdd, comboCount);
+                showFloatingText(targetEl, totalAdd, comboCount, timeBonus);
                 createParticles(targetEl);
                 const t1El = document.querySelector(`.apple[data-r="${tile1.r}"][data-c="${tile1.c}"]`);
                 if(t1El) createParticles(t1El);
@@ -413,6 +508,12 @@
                 removeTiles(tile1.r, tile1.c, tile2.r, tile2.c);
                 selectedTile = null;
                 clearCanvas();
+                isProcessing = false; 
+
+                remainingPairs--;
+                if (remainingPairs <= 0) {
+                    gameWin();
+                }
             }, 200);
         }
 
@@ -424,20 +525,28 @@
             clearCanvas();
         }
 
-        function showFloatingText(element, scoreAdd, combo) {
+        function showFloatingText(element, scoreAdd, combo, timeBonus) {
             const rect = element.getBoundingClientRect();
             const textEl = document.createElement('div');
             textEl.className = 'floating-text';
+            
+            let text = "";
             if (combo > 0) {
                 textEl.classList.add('combo-text');
-                textEl.innerText = `+${scoreAdd}\nCOMBO ${combo}!`;
+                text = `+${scoreAdd}\nCOMBO ${combo}!`;
             } else {
-                textEl.innerText = `+${scoreAdd}`;
+                text = `+${scoreAdd}`;
             }
+            
+            if (timeBonus > 0) {
+                text += `\n<span class="time-bonus-text">+${timeBonus}s</span>`;
+            }
+            textEl.innerHTML = text;
+            
             textEl.style.left = (rect.left + window.scrollX) + 'px';
             textEl.style.top = (rect.top + window.scrollY - 20) + 'px';
             document.body.appendChild(textEl);
-            setTimeout(() => textEl.remove(), 800);
+            setTimeout(() => textEl.remove(), 1000);
         }
 
         function createParticles(element) {
@@ -518,9 +627,11 @@
             return true;
         }
 
-        // --- 핵심 수정: drawPath 좌표 계산 보정 ---
+        // --- 선 그리기 로직 검토 완료 (좌표 보정) ---
         function drawPath(path) {
             clearCanvas();
+            ctx.beginPath(); // 필수: 이전 경로 제거
+            
             ctx.strokeStyle = '#ffca28';
             ctx.lineWidth = 5;
             ctx.lineCap = 'round';
@@ -528,25 +639,22 @@
             ctx.shadowColor = 'rgba(255, 200, 0, 0.8)';
             ctx.shadowBlur = 15;
             
-            ctx.beginPath();
-            
-            // 상수는 CSS와 맞춰야 함
-            const PADDING = 15;      // #gameBoard padding
-            const CELL_FULL = 32;    // TILE_SIZE(30) + GAP(2)
-            const HALF_TILE = 15;    // TILE_SIZE / 2
+            const PADDING = 15; 
+            const CELL_FULL = 32;
+            const HALF_TILE = 15;
             
             for (let i = 0; i < path.length; i++) {
-                // 공식: 패딩 + (인덱스 * 셀전체크기) + 반개크기(중앙정렬)
                 let x = PADDING + (path[i].c * CELL_FULL) + HALF_TILE;
                 let y = PADDING + (path[i].r * CELL_FULL) + HALF_TILE;
-                
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
             ctx.stroke();
         }
         
-        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        function clearCanvas() { 
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        }
 
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -567,15 +675,37 @@
         function endGame() {
             gameActive = false;
             clearInterval(timerInterval);
+            endTitleElement.textContent = "GAME OVER";
+            endTitleElement.style.color = "#d32f2f";
             finalScoreElement.textContent = score;
             gameOverElement.style.display = 'flex';
         }
+        
+        // 수정: 클리어 시 보너스 점수 삭제, 그냥 현재 점수 표시
+        function gameWin() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            playSound('win');
+            
+            endTitleElement.textContent = "GAME CLEAR!";
+            endTitleElement.style.color = "#1976D2"; 
+            
+            // 점수 변경 없음
+            finalScoreElement.textContent = score;
+            
+            gameOverElement.style.display = 'flex';
+        }
 
+        // 수정: 재시작 시 selectedTile 초기화
         function resetGame() {
             gameActive = true;
             score = 0;
             scoreElement.textContent = score;
             gameOverElement.style.display = 'none';
+            
+            selectedTile = null; // 버그 수정
+            isProcessing = false;
+            
             clearCanvas();
             initGame();
         }
