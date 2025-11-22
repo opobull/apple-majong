@@ -9,6 +9,7 @@
       gtag('js', new Date());
       gtag('config', 'G-ME95RD3YVS');
     </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>사과 사천성</title>
@@ -101,7 +102,7 @@
 
         #gameBoard {
             background: #e8f5e9;
-            padding: 15px; /* 패딩 15px */
+            padding: 15px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             position: relative;
@@ -110,7 +111,6 @@
 
         #grid {
             display: grid;
-            /* 모바일 최적화: 세로 모드 (12열 x 20행) */
             grid-template-columns: repeat(12, 30px);
             grid-template-rows: repeat(20, 30px);
             gap: 2px;
@@ -241,7 +241,6 @@
         </div>
 
         <div id="gameBoard">
-            <!-- 세로 모드 캔버스 사이즈 (12열 * 32px + 여백) -->
             <canvas id="canvas" width="430" height="680"></canvas>
             <div id="grid"></div>
         </div>
@@ -256,7 +255,6 @@
     </div>
 
     <script>
-        // --- 세로 모드 설정 (20행 12열) ---
         const ROWS = 20; 
         const COLS = 12; 
         const TILE_SIZE = 30;
@@ -273,6 +271,7 @@
         let comboCount = 0;
         let isProcessing = false; 
         let remainingPairs = 0;
+        let gameStartTime = 0; // 게임 시작 시간 추적
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -364,7 +363,6 @@
         function resizeGame() {
             const windowW = window.innerWidth;
             const windowH = window.innerHeight;
-            // 세로 모드 기준 크기
             const baseW = 420; 
             const baseH = 750; 
             const scale = Math.min(windowW / baseW, windowH / baseH) * 0.95;
@@ -404,7 +402,17 @@
 
             lastMatchTime = 0;
             comboCount = 0;
-            isProcessing = false; 
+            isProcessing = false;
+            gameStartTime = Date.now(); // 게임 시작 시간 기록
+            
+            // Google Analytics: 게임 시작 이벤트
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'game_start', {
+                    event_category: 'game',
+                    event_label: 'new_game'
+                });
+            }
+            
             renderGrid();
             resizeGame();
             startTimer();
@@ -478,20 +486,17 @@
             else comboCount = 0;
             lastMatchTime = now;
 
-            // 점수 계산
             const baseScore = 10;
             const bonus = comboCount * 5;
             const totalAdd = baseScore + bonus;
             score += totalAdd;
             scoreElement.textContent = score;
 
-            // 시간 보너스 로직 (밸런스형)
             let timeBonus = 0;
             if (comboCount > 0) {
                 timeBonus = Math.min(comboCount, 3);
             }
             
-            // 시간 상한선 적용
             timeLeft = Math.min(timeLeft + timeBonus, TIME_LIMIT);
             timerElement.textContent = timeLeft;
             
@@ -635,10 +640,9 @@
             return true;
         }
 
-        // --- 선 그리기 로직 검토 완료 (좌표 보정) ---
         function drawPath(path) {
             clearCanvas();
-            ctx.beginPath(); // 필수: 이전 경로 제거
+            ctx.beginPath();
             
             ctx.strokeStyle = '#ffca28';
             ctx.lineWidth = 5;
@@ -686,10 +690,21 @@
             endTitleElement.textContent = "GAME OVER";
             endTitleElement.style.color = "#d32f2f";
             finalScoreElement.textContent = score;
+            
+            // Google Analytics: 게임 오버 이벤트
+            const playTime = Math.floor((Date.now() - gameStartTime) / 1000); // 초 단위
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'game_over', {
+                    event_category: 'game',
+                    event_label: 'time_out',
+                    value: score,
+                    play_time: playTime
+                });
+            }
+            
             gameOverElement.style.display = 'flex';
         }
         
-        // 수정: 클리어 시 보너스 점수 삭제, 그냥 현재 점수 표시
         function gameWin() {
             gameActive = false;
             clearInterval(timerInterval);
@@ -697,21 +712,31 @@
             
             endTitleElement.textContent = "GAME CLEAR!";
             endTitleElement.style.color = "#1976D2"; 
-            
-            // 점수 변경 없음
             finalScoreElement.textContent = score;
+            
+            // Google Analytics: 게임 클리어 이벤트
+            const playTime = Math.floor((Date.now() - gameStartTime) / 1000); // 초 단위
+            const remainingTime = timeLeft;
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'game_clear', {
+                    event_category: 'game',
+                    event_label: 'completed',
+                    value: score,
+                    play_time: playTime,
+                    remaining_time: remainingTime
+                });
+            }
             
             gameOverElement.style.display = 'flex';
         }
 
-        // 수정: 재시작 시 selectedTile 초기화
         function resetGame() {
             gameActive = true;
             score = 0;
             scoreElement.textContent = score;
             gameOverElement.style.display = 'none';
             
-            selectedTile = null; // 버그 수정
+            selectedTile = null;
             isProcessing = false;
             
             clearCanvas();
