@@ -739,6 +739,14 @@
             selectedTile = null;
             isProcessing = false;
             
+            // Google Analytics: 다시 도전 이벤트
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'game_retry', {
+                    event_category: 'game',
+                    event_label: 'retry_button_clicked'
+                });
+            }
+            
             clearCanvas();
             initGame();
         }
